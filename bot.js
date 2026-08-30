@@ -6,36 +6,36 @@ import { createCanvas } from '@napi-rs/canvas';
 import crypto from 'crypto';
 import { initDB, getUser, updateBalance } from './database.js';
 
-const TOKEN = process.env.DISCORD_TOKEN;[cite: 2]
-const CLIENT_ID = '1543237982918672394';[cite: 2]
-const ADMIN_USERNAME = 'g00dday';[cite: 2]
+const TOKEN = process.env.DISCORD_TOKEN;
+const CLIENT_ID = '1543237982918672394';
+const ADMIN_USERNAME = 'g00dday';
 
 // --- EXPRESS WEB SERVER SETUP ---
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));[cite: 2]
+app.use(express.static('public'));
 
-const PORT = process.env.PORT || 3000;[cite: 2]
+const PORT = process.env.PORT || 3000;
 
 // --- GAME CONSTANTS ---
-const SYMBOLS = ['🍒', '🍋', '🍊', '🍇', '🔔', '💎', '7️⃣'];[cite: 2]
-const PAYTABLE = {[cite: 2]
+const SYMBOLS = ['🍒', '🍋', '🍊', '🍇', '🔔', '💎', '7️⃣'];
+const PAYTABLE = {
   '🍒': { 3: 2, 4: 5, 5: 10 }, '🍋': { 3: 2, 4: 5, 5: 10 },
   '🍊': { 3: 3, 4: 8, 5: 15 }, '🍇': { 3: 4, 4: 10, 5: 20 },
   '🔔': { 3: 5, 4: 15, 5: 30 }, '💎': { 3: 10, 4: 25, 5: 50 },
   '7️⃣': { 3: 25, 4: 75, 5: 100 }
 };
-const PAYLINES = [[0,0,0,0,0], [1,1,1,1,1], [2,2,2,2,2], [0,1,2,1,0], [2,1,0,1,2]];[cite: 2]
-const PLINKO_MULTIPLIERS = [10, 4, 2, 1.2, 0.2, 0.2, 1.2, 2, 4, 10];[cite: 2]
+const PAYLINES = [[0,0,0,0,0], [1,1,1,1,1], [2,2,2,2,2], [0,1,2,1,0], [2,1,0,1,2]];
+const PLINKO_MULTIPLIERS = [10, 4, 2, 1.2, 0.2, 0.2, 1.2, 2, 4, 10];
 
 // --- WEB API ENDPOINTS (Matched to public/app.js) ---
-app.get('/api/user/balance/:discordId', async (req, res) => {[cite: 2]
+app.get('/api/user/balance/:discordId', async (req, res) => {
   const user = await getUser(req.params.discordId);
   res.json({ balance: user ? user.balance : 1000 });
 });
 
-app.post('/api/game/megafruit', async (req, res) => {[cite: 2]
+app.post('/api/game/megafruit', async (req, res) => {
   const { userId, bet } = req.body;
   const dbUser = await getUser(userId);
 
@@ -79,7 +79,7 @@ app.post('/api/game/megafruit', async (req, res) => {[cite: 2]
   });
 });
 
-app.post('/api/game/plinko', async (req, res) => {[cite: 2]
+app.post('/api/game/plinko', async (req, res) => {
   const { userId, bet } = req.body;
   const dbUser = await getUser(userId);
 
@@ -112,9 +112,9 @@ app.post('/api/game/plinko', async (req, res) => {[cite: 2]
 
 
 // --- DISCORD BOT SETUP & SLASH COMMANDS ---
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });[cite: 2]
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-client.once('ready', async () => {[cite: 2]
+client.once('ready', async () => {
   await initDB();
   
   app.listen(PORT, () => {
@@ -124,7 +124,7 @@ client.once('ready', async () => {[cite: 2]
   console.log(`Logged in as ${client.user.tag}`);
 });
 
-client.on('interactionCreate', async interaction => {[cite: 2]
+client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
   const { commandName, user } = interaction;
@@ -305,4 +305,4 @@ client.on('interactionCreate', async interaction => {[cite: 2]
   }
 });
 
-client.login(TOKEN);[cite: 2]
+client.login(TOKEN);
