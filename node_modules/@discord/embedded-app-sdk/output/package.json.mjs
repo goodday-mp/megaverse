@@ -1,0 +1,3 @@
+var version = "1.9.0";
+
+export { version };

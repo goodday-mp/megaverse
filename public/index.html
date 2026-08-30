@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MegaPlanet Casino</title>
+  
+  <!-- 1. Include the Discord Embedded App SDK -->
+  <script src="https://gamingservices.discord.com/sdk/v1/stable/discord-sdk.js"></script>
+
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --success: #2ed573;
+      --danger: #ff4757;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .casino-container {
+      width: 420px;
+      background-color: var(--card-bg);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .casino-header {
+      padding: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: rgba(15, 23, 42, 0.6);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .casino-title {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: var(--text-main);
+      letter-spacing: 0.5px;
+    }
+
+    .balance-display {
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid var(--accent);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      color: #60a5fa;
+    }
+
+    .nav-tabs {
+      display: flex;
+      background-color: #0f172a;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 12px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn.active {
+      color: var(--text-main);
+      background-color: var(--card-bg);
+      border-bottom: 2px solid var(--accent);
+    }
+
+    .tab-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .game-view {
+      display: none;
+      flex-direction: column;
+      padding: 16px;
+    }
+
+    .game-view.active {
+      display: flex;
+    }
+
+    .win-banner {
+      min-height: 28px;
+      text-align: center;
+      font-size: 0.85rem;
+      font-weight: bold;
+      margin-bottom: 12px;
+      color: #fbbf24;
+    }
+
+    .slots-grid-wrapper {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 16px;
+      background: #0b0f19;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .slots-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 55px);
+      gap: 6px;
+      height: 245px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .reel-column {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+      transform: translateY(0px);
+    }
+
+    .reel-cell {
+      width: 55px;
+      height: 75px;
+      background: #1e293b;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 2rem;
+      flex-shrink: 0;
+    }
+
+    .reel-cell.win-highlight {
+      border-color: #fbbf24;
+      background: rgba(251, 191, 36, 0.15);
+      box-shadow: 0 0 10px rgba(251, 191, 36, 0.4);
+    }
+
+    .spin-blur {
+      filter: blur(1.5px);
+      opacity: 0.7;
+    }
+
+    .plinko-canvas-wrapper {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 16px;
+      background: #0b0f19;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    canvas {
+      background: #0b0f19;
+      display: block;
+    }
+
+    .control-deck {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .bet-control-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #0b0f19;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .bet-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .bet-input-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .bet-input {
+      width: 70px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .bet-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .chip-btns {
+      display: flex;
+      gap: 4px;
+    }
+
+    .chip-btn, .rounds-btn {
+      background: var(--border);
+      border: none;
+      color: var(--text-main);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .chip-btn:hover, .rounds-btn:hover {
+      background: var(--accent);
+    }
+
+    .rounds-btn.selected {
+      background: var(--accent);
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 12px;
+      background-color: var(--success);
+      color: #0b0f19;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .action-btn:hover {
+      background-color: #26af5f;
+    }
+
+    .action-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .action-btn.stop-btn {
+      background-color: var(--danger);
+      color: white;
+    }
+    .action-btn.stop-btn:hover {
+      background-color: #e03e4d;
+    }
+
+    .auto-options {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      background: #0b0f19;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      font-size: 0.8rem;
+    }
+
+    .auto-options.visible {
+      display: flex;
+    }
+
+    .auto-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .auto-toggle-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+
+    .auto-toggle-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(59, 130, 246, 0.1);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="casino-container">
+    <div class="casino-header">
+      <div class="casino-title">MEGA-CASINO</div>
+      <div class="balance-display">🪙 <span id="balance">1000</span></div>
+    </div>
+
+    <div class="nav-tabs">
+      <button id="tab-slots" class="tab-btn active" onclick="switchGame('slots')">MegaFruit Slots</button>
+      <button id="tab-plinko" class="tab-btn" onclick="switchGame('plinko')">Plinko</button>
+    </div>
+
+    <!-- Slots View -->
+    <div id="slots-view" class="game-view active">
+      <div id="slotWinBanner" class="win-banner">Match symbols along paylines!</div>
+      
+      <div class="slots-grid-wrapper">
+        <div class="slots-grid">
+          <div class="reel-column" id="col-track-0"></div>
+          <div class="reel-column" id="col-track-1"></div>
+          <div class="reel-column" id="col-track-2"></div>
+          <div class="reel-column" id="col-track-3"></div>
+          <div class="reel-column" id="col-track-4"></div>
+        </div>
+      </div>
+
+      <div class="control-deck">
+        <div class="bet-control-row">
+          <span class="bet-label">BET AMOUNT</span>
+          <div class="bet-input-group">
+            <input type="number" id="slotBet" class="slot-ctrl bet-input" value="10" min="10">
+            <div class="chip-btns">
+              <button class="chip-btn slot-ctrl" onclick="setBet('slotBet', 10)">10</button>
+              <button class="chip-btn slot-ctrl" onclick="setBet('slotBet', 50)">50</button>
+              <button class="chip-btn slot-ctrl" onclick="modifyBet('slotBet', 2)">2x</button>
+              <button class="chip-btn slot-ctrl" onclick="setMaxBet('slotBet')">MAX</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="auto-row">
+          <span class="bet-label">AUTO SPIN</span>
+          <button id="slotAutoToggle" class="auto-toggle-btn slot-ctrl" onclick="toggleAutoMode('slots')">AUTO: OFF</button>
+        </div>
+
+        <div id="slotAutoOptions" class="auto-options">
+          <span class="bet-label">Rounds:</span>
+          <div class="chip-btns">
+            <button class="rounds-btn selected" onclick="setAutoRounds('slots', 10, this)">10</button>
+            <button class="rounds-btn" onclick="setAutoRounds('slots', 25, this)">25</button>
+            <button class="rounds-btn" onclick="setAutoRounds('slots', 50, this)">50</button>
+            <button class="rounds-btn" onclick="setAutoRounds('slots', Infinity, this)">∞ INF</button>
+          </div>
+        </div>
+
+        <button id="spinBtn" class="action-btn" onclick="handleSlotSpinClick()">SPIN</button>
+      </div>
+    </div>
+
+    <!-- Plinko View -->
+    <div id="plinko-view" class="game-view">
+      <div id="plinkoWinBanner" class="win-banner">Drop balls into high multipliers!</div>
+
+      <div class="plinko-canvas-wrapper">
+        <canvas id="plinkoCanvas" width="360" height="340"></canvas>
+      </div>
+
+      <div class="control-deck">
+        <div class="bet-control-row">
+          <span class="bet-label">BET AMOUNT</span>
+          <div class="bet-input-group">
+            <input type="number" id="plinkoBet" class="plinko-ctrl bet-input" value="10" min="10">
+            <div class="chip-btns">
+              <button class="chip-btn plinko-ctrl" onclick="setBet('plinkoBet', 10)">10</button>
+              <button class="chip-btn plinko-ctrl" onclick="setBet('plinkoBet', 50)">50</button>
+              <button class="chip-btn plinko-ctrl" onclick="modifyBet('plinkoBet', 2)">2x</button>
+              <button class="chip-btn plinko-ctrl" onclick="setMaxBet('plinkoBet')">MAX</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="auto-row">
+          <span class="bet-label">AUTO DROP</span>
+          <button id="plinkoAutoToggle" class="auto-toggle-btn plinko-ctrl" onclick="toggleAutoMode('plinko')">AUTO: OFF</button>
+        </div>
+
+        <div id="plinkoAutoOptions" class="auto-options">
+          <span class="bet-label">Rounds:</span>
+          <div class="chip-btns">
+            <button class="rounds-btn selected" onclick="setAutoRounds('plinko', 10, this)">10</button>
+            <button class="rounds-btn" onclick="setAutoRounds('plinko', 25, this)">25</button>
+            <button class="rounds-btn" onclick="setAutoRounds('plinko', 50, this)">50</button>
+            <button class="rounds-btn" onclick="setAutoRounds('plinko', Infinity, this)">∞ INF</button>
+          </div>
+        </div>
+
+        <button id="dropBtn" class="action-btn" onclick="handlePlinkoDropClick()">DROP BALL</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+
+  <!-- 2. Initialize Discord SDK with your Client ID -->
+  <script>
+    const discordSdk = new DiscordSDK('1543237982918672394');
+    
+    window.discordReady = discordSdk.ready().then(() => {
+      console.log("Discord SDK is ready!");
+    }).catch(err => {
+      console.error("Discord SDK failed to ready:", err);
+    });
+  </script>
+</body>
+</html>
