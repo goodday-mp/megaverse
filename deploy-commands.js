@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { REST, Routes, SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 
 const CLIENT_ID = '1543237982918672394';
-const TOKEN = process.env.DISCORD_TOKEN;[cite: 1]
+const TOKEN = process.env.DISCORD_TOKEN;
 
 const commands = [
   new SlashCommandBuilder()
