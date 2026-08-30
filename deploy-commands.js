@@ -1,3 +1,4 @@
+cat << 'EOF' > deploy-commands.js
 import 'dotenv/config';
 import { REST, Routes, SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 
@@ -52,3 +53,4 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
     console.error(error);
   }
 })();
+EOF
