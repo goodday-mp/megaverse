@@ -722,8 +722,86 @@ function updatePlinkoPhysics() {
   }
 }
 
+function installUpdatedCasinoUI() {
+  if (!document.getElementById('casinoUpdateStyles')) {
+    const style = document.createElement('style');
+    style.id = 'casinoUpdateStyles';
+    style.textContent = `
+      .leaderboard-panel { padding: 14px; }
+      .leaderboard-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+      .leaderboard-filter-group { display: flex; flex-wrap: wrap; gap: 4px; }
+      .leaderboard-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; }
+      .leaderboard-table { width: 100%; border-collapse: collapse; font-size: .72rem; }
+      .leaderboard-table th, .leaderboard-table td { padding: 9px 7px; border-bottom: 1px solid var(--border); text-align: right; }
+      .leaderboard-table th:nth-child(2), .leaderboard-table td:nth-child(2) { text-align: left; }
+      .leaderboard-table tr:last-child td { border-bottom: 0; }
+      .leaderboard-rank { width: 36px; color: var(--accent); font-weight: 800; }
+      .leaderboard-player { display: flex; align-items: center; gap: 7px; min-width: 110px; }
+      .leaderboard-player img, .leaderboard-avatar-fallback { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+      .leaderboard-avatar-fallback { display: inline-grid; place-items: center; background: var(--surface-light); color: var(--text-muted); }
+      .leaderboard-status { min-height: 26px; padding: 8px; color: var(--text-muted); font-size: .7rem; text-align: center; }
+      [data-leaderboard-period].selected, [data-leaderboard-sort].selected { border-color: var(--accent); color: var(--accent); }
+    `;
+    document.head.appendChild(style);
+  }
+
+  for (const config of [
+    { inputId: 'slotBet', controlClass: 'slot-ctrl' },
+    { inputId: 'plinkoBet', controlClass: 'plinko-ctrl' },
+  ]) {
+    const input = document.getElementById(config.inputId);
+    const group = input?.closest('.bet-input-group');
+    if (!group) continue;
+    group.innerHTML = `
+      <button class="chip-btn ${config.controlClass}" onclick="modifyBet('${config.inputId}', 2)">2x</button>
+      <input type="number" id="${config.inputId}" class="${config.controlClass} bet-input" value="${escapeHtml(input.value || '10')}" min="10">
+      <div class="chip-btns">
+        <button class="chip-btn ${config.controlClass}" onclick="setBet('${config.inputId}', 10)">10</button>
+        <button class="chip-btn ${config.controlClass}" onclick="setBet('${config.inputId}', 50)">50</button>
+        <button class="chip-btn ${config.controlClass}" onclick="setBet('${config.inputId}', 100)">100</button>
+      </div>
+    `;
+  }
+
+  const tabs = document.querySelector('.nav-tabs');
+  if (tabs && !document.getElementById('tab-leaderboard')) {
+    tabs.insertAdjacentHTML('beforeend', '<button id="tab-leaderboard" class="tab-btn" onclick="switchGame(\'leaderboard\')">Ranks</button>');
+  }
+
+  const container = document.querySelector('.casino-container');
+  if (container && !document.getElementById('leaderboard-view')) {
+    container.insertAdjacentHTML('beforeend', `
+      <div id="leaderboard-view" class="game-view">
+        <div class="win-banner">PLAYER RANKINGS</div>
+        <div class="leaderboard-panel">
+          <div class="leaderboard-filters">
+            <div class="leaderboard-filter-group">
+              <button class="rounds-btn selected" data-leaderboard-period onclick="setLeaderboardPeriod('daily', this)">Daily</button>
+              <button class="rounds-btn" data-leaderboard-period onclick="setLeaderboardPeriod('weekly', this)">Weekly</button>
+              <button class="rounds-btn" data-leaderboard-period onclick="setLeaderboardPeriod('monthly', this)">Monthly</button>
+              <button class="rounds-btn" data-leaderboard-period onclick="setLeaderboardPeriod('all', this)">All Time</button>
+            </div>
+            <div class="leaderboard-filter-group">
+              <button class="chip-btn selected" data-leaderboard-sort onclick="setLeaderboardSort('won', this)">Most Won</button>
+              <button class="chip-btn" data-leaderboard-sort onclick="setLeaderboardSort('wagered', this)">Most Wagered</button>
+            </div>
+          </div>
+          <div class="leaderboard-table-wrap">
+            <table class="leaderboard-table">
+              <thead><tr><th>#</th><th>Player</th><th>Wagered</th><th>Won</th></tr></thead>
+              <tbody id="leaderboardBody"></tbody>
+            </table>
+          </div>
+          <div id="leaderboardStatus" class="leaderboard-status">Open rankings to load players.</div>
+        </div>
+      </div>
+    `);
+  }
+}
+
 // Initial setup triggers on load
 window.addEventListener('DOMContentLoaded', () => {
+  installUpdatedCasinoUI();
   initializeDiscordUser();
   initReelColumns();
   drawPlinkoBoard();
