@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { Client, GatewayIntentBits, EmbedBuilder } from 'discord.js';
 import crypto from 'crypto';
-import { initDB, getUser, adjustBalance, getRecentTransactions } from './database.js';
+import { initDB, getUser, adjustBalance, getRecentTransactions, getLeaderboard } from './database.js';
 
 dotenv.config();
 
@@ -152,6 +152,20 @@ app.post('/api/discord/token', async (req, res) => {
   } catch (error) {
     console.error('Discord authentication failed:', error);
     sendError(res, 'Failed to authenticate with Discord.', 401);
+  }
+});
+
+app.get('/api/leaderboard', async (req, res) => {
+  const period = typeof req.query.period === 'string' ? req.query.period : 'all';
+  const sort = typeof req.query.sort === 'string' ? req.query.sort : 'won';
+  if (!['daily', 'weekly', 'monthly', 'all'].includes(period) || !['won', 'wagered'].includes(sort)) {
+    return sendError(res, 'Invalid leaderboard period or ranking metric.');
+  }
+  try {
+    res.json({ period, sort, entries: await getLeaderboard(period, sort) });
+  } catch (error) {
+    console.error('Leaderboard error:', error);
+    sendError(res, 'Leaderboard is temporarily unavailable.', 500);
   }
 });
 
