@@ -120,7 +120,7 @@ window.setMaxBet = function(inputId) {
   const input = document.getElementById(inputId);
   if (!balanceElem || !input || input.disabled) return;
   const currentBalance = parseInt(balanceElem.innerText || 0, 10);
-  input.value = Math.max(10, currentBalance);
+  input.value = Math.max(10, Math.min(10000, currentBalance));
 };
 
 function createRequestKey(prefix) {
@@ -729,7 +729,10 @@ function installUpdatedCasinoUI() {
     style.textContent = `
       .leaderboard-panel { padding: 14px; }
       .leaderboard-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-      .leaderboard-filter-group { display: flex; flex-wrap: wrap; gap: 4px; }
+      .leaderboard-filter-group { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+      .leaderboard-filter-label { flex-basis: 100%; color: var(--text-muted); font-size: .58rem; letter-spacing: .08em; text-transform: uppercase; }
+      .payline-overlay-live { position: absolute; inset: 8px; z-index: 2; width: calc(100% - 16px); height: calc(100% - 16px); pointer-events: none; }
+      .payline-overlay-live polyline { fill: none; stroke: rgba(251, 191, 36, .14); stroke-width: 1; vector-effect: non-scaling-stroke; }
       .leaderboard-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; }
       .leaderboard-table { width: 100%; border-collapse: collapse; font-size: .72rem; }
       .leaderboard-table th, .leaderboard-table td { padding: 9px 7px; border-bottom: 1px solid var(--border); text-align: right; }
@@ -759,8 +762,18 @@ function installUpdatedCasinoUI() {
         <button class="chip-btn ${config.controlClass}" onclick="setBet('${config.inputId}', 10)">10</button>
         <button class="chip-btn ${config.controlClass}" onclick="setBet('${config.inputId}', 50)">50</button>
         <button class="chip-btn ${config.controlClass}" onclick="setBet('${config.inputId}', 100)">100</button>
+        <button class="chip-btn ${config.controlClass}" onclick="setMaxBet('${config.inputId}')">MAX</button>
       </div>
     `;
+  }
+
+  const slotsWrapper = document.querySelector('#slots-view .slots-grid-wrapper');
+  if (slotsWrapper && !slotsWrapper.querySelector('.payline-overlay-live')) {
+    slotsWrapper.querySelectorAll('.payline-line').forEach(line => line.remove());
+    const paylines = [[0,0,0,0,0],[1,1,1,1,1],[2,2,2,2,2],[0,1,2,1,0],[2,1,0,1,2],[0,0,1,2,2],[2,2,1,0,0],[1,0,0,0,1],[1,2,2,2,1]];
+    slotsWrapper.insertAdjacentHTML('afterbegin', '<svg class="payline-overlay-live" viewBox="0 0 500 300" preserveAspectRatio="none" aria-hidden="true">' + paylines.map(line => '<polyline points="' + line.map((row, column) => (50 + column * 100) + ',' + (50 + row * 100)).join(' ') + '"></polyline>').join('') + '</svg>');
+    const legend = document.querySelector('#slots-view .payline-legend span:first-child');
+    if (legend) legend.innerHTML = '<i class="payline-dot"></i> 9 paylines · 96.24% RTP';
   }
 
   const tabs = document.querySelector('.nav-tabs');
@@ -776,14 +789,16 @@ function installUpdatedCasinoUI() {
         <div class="leaderboard-panel">
           <div class="leaderboard-filters">
             <div class="leaderboard-filter-group">
+              <span class="leaderboard-filter-label">Ranking</span>
+              <button class="chip-btn selected" data-leaderboard-sort onclick="setLeaderboardSort('won', this)">Most Won</button>
+              <button class="chip-btn" data-leaderboard-sort onclick="setLeaderboardSort('wagered', this)">Most Wagered</button>
+            </div>
+            <div class="leaderboard-filter-group">
+              <span class="leaderboard-filter-label">Period filter</span>
               <button class="rounds-btn selected" data-leaderboard-period onclick="setLeaderboardPeriod('daily', this)">Daily</button>
               <button class="rounds-btn" data-leaderboard-period onclick="setLeaderboardPeriod('weekly', this)">Weekly</button>
               <button class="rounds-btn" data-leaderboard-period onclick="setLeaderboardPeriod('monthly', this)">Monthly</button>
               <button class="rounds-btn" data-leaderboard-period onclick="setLeaderboardPeriod('all', this)">All Time</button>
-            </div>
-            <div class="leaderboard-filter-group">
-              <button class="chip-btn selected" data-leaderboard-sort onclick="setLeaderboardSort('won', this)">Most Won</button>
-              <button class="chip-btn" data-leaderboard-sort onclick="setLeaderboardSort('wagered', this)">Most Wagered</button>
             </div>
           </div>
           <div class="leaderboard-table-wrap">
