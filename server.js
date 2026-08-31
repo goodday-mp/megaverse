@@ -11,7 +11,7 @@ const TOKEN = process.env.DISCORD_TOKEN || process.env.TOKEN;
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID || process.env.CLIENT_ID || '1543237982918672394';
 const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || process.env.CLIENT_SECRET;
 const ADMIN_USER_ID = process.env.ADMIN_USER_ID;
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'g00dday';
+if (!ADMIN_USER_ID) console.warn('ADMIN_USER_ID is not set; manual wallet commands are disabled.');
 const SESSION_SECRET = process.env.SESSION_SECRET;
 const ALLOW_DEMO_MODE = process.env.NODE_ENV !== 'production' || process.env.ALLOW_DEMO_MODE === 'true';
 const PORT = process.env.PORT || 3000;
@@ -183,7 +183,7 @@ app.post('/api/bot/wallet', async (req, res) => {
   } catch (error) { sendError(res, error.message === 'Insufficient balance' ? error.message : 'Wallet adjustment failed.'); }
 });
 
-function isAdmin(user) { return ADMIN_USER_ID ? user.id === ADMIN_USER_ID : user.username === ADMIN_USERNAME; }
+function isAdmin(user) { return Boolean(ADMIN_USER_ID && user.id === ADMIN_USER_ID); }
 
 async function handleInteraction(interaction) {
   if (!interaction.isChatInputCommand()) return;
