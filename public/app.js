@@ -30,7 +30,7 @@ async function initializeDiscordUser() {
     }
   } catch (err) {
     console.warn("Running outside Discord or auth failed, falling back to local guest ID:", err);
-    user.id = '1'; // Fallback for local testing outside Discord
+    user.id = null; // The server decides whether local demo mode is allowed
   }
 
   fetchUserBalance();
@@ -52,12 +52,21 @@ window.switchGame = function(game) {
 // Fetch Initial Balance
 async function fetchUserBalance() {
   try {
-    const res = await fetch(`${API_BASE}/api/user/balance/${user.id}`);
+    const res = await fetch(API_BASE + '/api/session', { credentials: 'include' });
     const data = await res.json();
-    const balanceElem = document.getElementById("balance");
+    if (!res.ok) throw new Error(data.error || 'Session unavailable');
+    user.id = data.player.id;
+    user.username = data.player.displayName;
+    const balanceElem = document.getElementById('balance');
+    const playerElem = document.getElementById('playerName');
+    const connectionElem = document.getElementById('connectionState');
     if (balanceElem) balanceElem.innerText = data.balance;
+    if (playerElem) playerElem.innerText = data.player.displayName;
+    if (connectionElem) connectionElem.innerText = data.player.mode === 'discord' ? 'DISCORD CONNECTED' : 'LOCAL PREVIEW';
   } catch (err) {
-    console.error("Failed to load balance:", err);
+    console.error('Failed to load session:', err);
+    const connectionElem = document.getElementById('connectionState');
+    if (connectionElem) connectionElem.innerText = 'OPEN IN DISCORD';
   }
 }
 
@@ -267,8 +276,12 @@ window.spinMegaFruits = async function() {
   try {
     const res = await fetch(`${API_BASE}/api/game/megafruit`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: user.id, bet }),
+      headers: {
+              'Content-Type': 'application/json',
+              'X-Idempotency-Key': crypto.randomUUID ? crypto.randomUUID() : 'spin-' + Date.now(),
+            },
+            credentials: 'include',
+            body: JSON.stringify({ bet }),
     });
 
     const data = await res.json();
@@ -377,9 +390,9 @@ const ROWS = 9;
 const MULTIPLIERS = [10, 4, 2, 1.2, 0.2, 0.2, 1.2, 2, 4, 10];
 const PEG_RADIUS = 4;
 const BALL_RADIUS = 7;
-const START_Y = 40;
-const ROW_SPACING = 34;
-const PEG_SPACING = 36;
+const START_Y = 32;
+const ROW_SPACING = 28;
+const PEG_SPACING = 28;
 
 const activeBalls = [];
 let plinkoLoopStarted = false;
@@ -429,16 +442,25 @@ function drawPlinkoBoard() {
   }
 
   const lastRow = ROWS - 1;
-  const bucketY = getPegY(ROWS) + 15;
+  const bucketY = getPegY(ROWS) + 18;
 
   for (let i = 0; i < MULTIPLIERS.length; i++) {
     const bucketX = getGapX(lastRow, i);
     const mult = MULTIPLIERS[i];
 
-    ctx.fillStyle = mult >= 2 ? "#ff4757" : (mult >= 1 ? "#ffa502" : "#2ed573");
-    ctx.font = "bold 12px Segoe UI, sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(`${mult}x`, bucketX, bucketY);
+    const slotColor = mult >= 2 ? '#ff4757' : (mult >= 1 ? '#ffa502' : '#2ed573');
+    ctx.fillStyle = slotColor;
+    ctx.globalAlpha = 0.22;
+    ctx.beginPath();
+    ctx.roundRect(bucketX - 13, bucketY - 13, 26, 19, 4);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = slotColor;
+    ctx.stroke();
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 9px Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(String(mult) + 'x', bucketX, bucketY);
   }
 }
 
@@ -509,8 +531,12 @@ window.dropPlinkoBall = async function() {
   try {
     const res = await fetch(`${API_BASE}/api/game/plinko`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: user.id, bet }),
+      headers: {
+              'Content-Type': 'application/json',
+              'X-Idempotency-Key': crypto.randomUUID ? crypto.randomUUID() : 'drop-' + Date.now(),
+            },
+            credentials: 'include',
+            body: JSON.stringify({ bet }),
     });
 
     const data = await res.json();
@@ -529,15 +555,13 @@ window.dropPlinkoBall = async function() {
     waypoints.push({ x: canvas.width / 2, y: START_Y - 15 });
 
     for (let r = 0; r < data.path.length; r++) {
-      waypoints.push({ x: getPegX(r, currentCol), y: getPegY(r) });
-      if (data.path[r] === 1) {
-        currentCol++;
-      }
+      if (data.path[r] === 1) currentCol++;
+      waypoints.push({ x: getGapX(r, currentCol), y: getPegY(r) + (ROW_SPACING / 2) });
     }
 
     const lastRow = ROWS - 1;
     const finalBucketX = getGapX(lastRow, data.slotIndex);
-    const finalBucketY = getPegY(ROWS) + 10;
+    const finalBucketY = getPegY(ROWS) + 8;
     waypoints.push({ x: finalBucketX, y: finalBucketY });
 
     activeBalls.push({
