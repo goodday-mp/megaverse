@@ -26,7 +26,8 @@ const commands = [
     .addUserOption(opt => 
       opt.setName('user').setDescription('The user to withdraw money from').setRequired(true))
     .addIntegerOption(opt => 
-      opt.setName('amount').setDescription('Amount of credits to withdraw').setRequired(true)),
+      opt.setName('amount').setDescription('Amount of credits to withdraw').setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   new SlashCommandBuilder()
     .setName('slots')
