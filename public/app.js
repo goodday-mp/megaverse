@@ -8,32 +8,43 @@ const API_BASE = window.location.origin.startsWith("file://")
 // Initialize Discord SDK connection and fetch authorized user
 async function initializeDiscordUser() {
   try {
+    if (!window.discordReady) throw new Error('Discord SDK initialization is unavailable');
+    await window.discordReady;
+
     const auth = await discordSdk.commands.authorize({
       client_id: '1543237982918672394',
       response_type: 'code',
+      state: '',
       prompt: 'none',
-      scope: ['identify', 'guilds'],
+      scope: ['identify', 'guilds', 'applications.commands'],
     });
+    if (!auth?.code) throw new Error('Discord authorization did not return a code');
 
     const response = await fetch(`${API_BASE}/api/discord/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ code: auth.code }),
     });
     
-    const { access_token } = await response.json();
-    const discordUserAuth = await discordSdk.commands.authenticate({ access_token });
-
-    if (discordUserAuth && discordUserAuth.user) {
-      user.id = discordUserAuth.user.id;
-      user.username = discordUserAuth.user.username;
+    const tokenData = await response.json();
+    if (!response.ok || !tokenData.access_token) {
+      throw new Error(tokenData.error || 'Discord token exchange failed');
     }
+
+    const discordUserAuth = await discordSdk.commands.authenticate({
+      access_token: tokenData.access_token,
+    });
+    if (!discordUserAuth?.user) throw new Error('Discord authentication returned no user');
+
+    user.id = discordUserAuth.user.id;
+    user.username = discordUserAuth.user.username;
   } catch (err) {
-    console.warn("Running outside Discord or auth failed, falling back to local guest ID:", err);
+    console.error('Discord Activity authentication failed:', err);
     user.id = null; // The server decides whether local demo mode is allowed
   }
 
-  fetchUserBalance();
+  await fetchUserBalance();
 }
 
 // Tab Switching
