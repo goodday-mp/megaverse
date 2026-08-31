@@ -20,7 +20,17 @@ const SESSION_COOKIE = 'mega_casino_session';
 if (!SESSION_SECRET) console.warn('SESSION_SECRET is not set; Discord session routes are unavailable.');
 
 const app = express();
-app.use(cors({ origin: true, credentials: true }));
+const TRUSTED_ORIGINS = new Set([
+  'https://megaverse.duckdns.org',
+  `https://${CLIENT_ID}.discordsays.com`,
+]);
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || TRUSTED_ORIGINS.has(origin)) return callback(null, true);
+    return callback(null, false);
+  },
+  credentials: true,
+}));
 app.use(express.json({ limit: '20kb' }));
 app.use(express.static('public', { etag: true, maxAge: '1h' }));
 
