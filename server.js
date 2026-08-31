@@ -41,7 +41,8 @@ const PAYTABLE = {
   '🔔': { 3: 5, 4: 15, 5: 30 }, '💎': { 3: 10, 4: 25, 5: 50 },
   '7️⃣': { 3: 25, 4: 75, 5: 100 },
 };
-const PAYLINES = [[0,0,0,0,0], [1,1,1,1,1], [2,2,2,2,2], [0,1,2,1,0], [2,1,0,1,2]];
+const PAYLINES = [[0,0,0,0,0], [1,1,1,1,1], [2,2,2,2,2], [0,1,2,1,0], [2,1,0,1,2], [0,0,1,2,2], [2,2,1,0,0], [1,0,0,0,1], [1,2,2,2,1]];
+const MEGAFRUIT_PAYLINE_SCALE = 5 / PAYLINES.length;
 const PLINKO_MULTIPLIERS = [10, 4, 2, 1.2, 0.2, 0.2, 1.2, 2, 4, 10];
 
 function sign(value) {
@@ -90,7 +91,7 @@ async function playMegafruit(userId, bet, referencePrefix) {
       if (grid[line[column]][column] === first) matches += 1; else break;
     }
     if (matches >= 3) {
-      multiplier += PAYTABLE[first]?.[matches] || 0;
+      multiplier += (PAYTABLE[first]?.[matches] || 0) * MEGAFRUIT_PAYLINE_SCALE;
       for (let column = 0; column < matches; column += 1) winningPositions.push({ r: line[column], c: column });
     }
   }
