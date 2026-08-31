@@ -43,13 +43,34 @@ const commands = [
 ].map(cmd => cmd.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(TOKEN);
+const applicationCommandsRoute = Routes.applicationCommands(CLIENT_ID);
+const WRITABLE_COMMAND_FIELDS = [
+  'name', 'name_localizations', 'description', 'description_localizations',
+  'options', 'default_member_permissions', 'dm_permission', 'nsfw', 'type',
+  'integration_types', 'contexts', 'handler',
+];
+
+function writableCommand(command) {
+  return Object.fromEntries(
+    WRITABLE_COMMAND_FIELDS
+      .filter((field) => command[field] !== undefined)
+      .map((field) => [field, command[field]]),
+  );
+}
 
 (async () => {
   try {
     console.log('Registering updated slash commands...');
-    await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
+    const existingCommands = await rest.get(applicationCommandsRoute);
+    const entryPoint = existingCommands.find((command) => command.type === 4);
+    const body = entryPoint
+      ? [writableCommand(entryPoint), ...commands]
+      : commands;
+    if (entryPoint) console.log('Preserving Activity Entry Point command: ' + entryPoint.name);
+    await rest.put(applicationCommandsRoute, { body });
     console.log('Slash commands updated successfully!');
   } catch (error) {
     console.error(error);
+    process.exitCode = 1;
   }
 })();
