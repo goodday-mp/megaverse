@@ -38,10 +38,11 @@ function sign(value) {
   return SESSION_SECRET ? crypto.createHmac('sha256', SESSION_SECRET).update(value).digest('base64url') : '';
 }
 
-function setSession(res, discordId) {
+function setSession(req, res, discordId) {
   const value = encodeURIComponent(discordId);
-  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  res.setHeader('Set-Cookie', SESSION_COOKIE + '=' + value + '.' + sign(value) + '; Path=/; HttpOnly; SameSite=None; Max-Age=2592000' + secure);
+  const isSecure = req.secure || req.get('x-forwarded-proto') === 'https';
+  const sameSite = isSecure ? 'None' : 'Lax';
+  res.setHeader('Set-Cookie', SESSION_COOKIE + '=' + value + '.' + sign(value) + '; Path=/; HttpOnly; SameSite=' + sameSite + '; Max-Age=2592000' + (isSecure ? '; Secure' : ''));
 }
 
 function getSessionId(req) {
@@ -136,7 +137,7 @@ app.post('/api/discord/token', async (req, res) => {
     if (!userResponse.ok || !discordUser.id) throw new Error('Identity lookup failed');
     const avatar = discordUser.avatar ? 'https://cdn.discordapp.com/avatars/' + discordUser.id + '/' + discordUser.avatar + '.png?size=128' : null;
     const user = await getUser(discordUser.id, { username: discordUser.global_name || discordUser.username, avatar });
-    setSession(res, user.discord_id);
+    setSession(req, res, user.discord_id);
     res.json({ access_token: tokenData.access_token, user: { id: user.discord_id, username: user.username, avatar: user.avatar } });
   } catch (error) {
     console.error('Discord authentication failed:', error);
