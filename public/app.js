@@ -503,6 +503,8 @@ const START_Y = 32;
 const ROW_SPACING = 28;
 const PEG_SPACING = 28;
 
+const PLINKO_SPEEDS = { slow: 0.045, fast: 0.13, instant: 0 };
+let plinkoSpeed = 'fast';
 const activeBalls = [];
 let plinkoLoopStarted = false;
 let activePlinkoDrops = 0;
@@ -675,13 +677,24 @@ window.dropPlinkoBall = async function() {
     const finalBucketY = getPegY(ROWS) + 8;
     waypoints.push({ x: finalBucketX, y: finalBucketY });
 
+    if (plinkoSpeed === 'instant') {
+      activePlinkoDrops = Math.max(0, activePlinkoDrops - 1);
+      pendingPlinkoWagers = Math.max(0, pendingPlinkoWagers - bet);
+      const visibleBalance = parseInt(balanceElem ? balanceElem.innerText || 0 : 0, 10);
+      if (balanceElem) balanceElem.innerText = data.newBalance ?? visibleBalance - bet + data.winAmount;
+      if (winBanner) winBanner.innerText = `⚪ Plinko Ball Landed in ${data.multiplier}x! Won ${data.winAmount} Credits!`;
+      updatePlinkoInputState();
+      drawPlinkoBoard();
+      return true;
+    }
+
     activeBalls.push({
       waypoints,
       currentWaypointIndex: 0,
       x: waypoints[0].x,
       y: waypoints[0].y,
       progress: 0,
-      speed: 0.08,
+      speed: PLINKO_SPEEDS[plinkoSpeed],
       multiplier: data.multiplier,
       bet,
       winAmount: data.winAmount
@@ -759,6 +772,16 @@ function updatePlinkoPhysics() {
   }
 }
 
+window.setPlinkoSpeed = function(speed) {
+  if (!(speed in PLINKO_SPEEDS)) return;
+  plinkoSpeed = speed;
+  document.querySelectorAll('[data-plinko-speed]').forEach(el => {
+    const selected = el.dataset.plinkoSpeed === speed;
+    el.classList.toggle('active', selected);
+    el.setAttribute('aria-pressed', String(selected));
+  });
+};
+
 window.setSlotSpinSpeed = function(speed, button) {
   if (!SLOT_SPEEDS[speed]) return;
   slotSpinSpeed = speed;
@@ -792,6 +815,10 @@ function installUpdatedCasinoUI() {
       .spin-speed-control-live > span { color: var(--text-muted); font-size: .56rem; }
       .spin-speed-control-live button { padding: 3px 6px; border: 1px solid var(--border); border-radius: 4px; background: transparent; color: var(--text-muted); font-family: monospace; font-size: .56rem; text-transform: uppercase; }
       .spin-speed-control-live button:hover, .spin-speed-control-live button.active { border-color: var(--accent); background: rgba(59,130,246,.12); color: #60a5fa; }
+      .plinko-speed-control-live { display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; margin: 0 8px 8px; }
+      .plinko-speed-control-live > span { color: var(--text-muted); font-size: .56rem; }
+      .plinko-speed-control-live button { padding: 3px 6px; border: 1px solid var(--border); border-radius: 4px; background: transparent; color: var(--text-muted); font-family: monospace; font-size: .56rem; text-transform: uppercase; }
+      .plinko-speed-control-live button:hover, .plinko-speed-control-live button.active { border-color: var(--accent); background: rgba(59,130,246,.12); color: #60a5fa; }
 
       .payline-toggle-live.active { border-color: #fbbf24; color: #fbbf24; }
       .slot-symbol { display: inline-flex; min-width: 1.1em; align-items: center; justify-content: center; }
@@ -839,6 +866,18 @@ function installUpdatedCasinoUI() {
     slotsWrapper.insertAdjacentHTML('afterbegin', '<svg class="payline-overlay-live" viewBox="0 0 500 300" preserveAspectRatio="none" aria-hidden="true">' + paylines.map((line, index) => '<polyline stroke="' + colors[index] + '" points="' + line.map((row, column) => (50 + column * 100) + ',' + (50 + row * 100)).join(' ') + '"></polyline>').join('') + '</svg>');
     const legend = document.querySelector('#slots-view .payline-legend');
     if (legend) legend.innerHTML = '<button class="payline-toggle-live" onclick="toggleLivePaylines(this)"><i class="payline-dot"></i> Show paylines</button><div class="spin-speed-control-live" role="group" aria-label="Spinning speed"><span>SPIN SPEED</span><button class="active" data-spin-speed="fast" aria-pressed="true" onclick="setSlotSpinSpeed(\'fast\', this)">Fast</button><button data-spin-speed="slow" aria-pressed="false" onclick="setSlotSpinSpeed(\'slow\', this)">Slow</button><button data-spin-speed="instant" aria-pressed="false" onclick="setSlotSpinSpeed(\'instant\', this)">Instant</button></div>';
+  }
+
+  const plinkoView = document.getElementById('plinko-view');
+  if (plinkoView && !plinkoView.querySelector('.plinko-speed-control-live')) {
+    const plinkoSpeedControl = document.createElement('div');
+    plinkoSpeedControl.className = 'plinko-speed-control-live';
+    plinkoSpeedControl.setAttribute('role', 'group');
+    plinkoSpeedControl.setAttribute('aria-label', 'Plinko speed');
+    plinkoSpeedControl.innerHTML = '<span>SPEED</span><button class="active" data-plinko-speed="fast" aria-pressed="true" onclick="setPlinkoSpeed(\'fast\')">Fast</button><button data-plinko-speed="slow" aria-pressed="false" onclick="setPlinkoSpeed(\'slow\')">Slow</button><button data-plinko-speed="instant" aria-pressed="false" onclick="setPlinkoSpeed(\'instant\')">Instant</button>';
+    const plinkoCanvas = plinkoView.querySelector('#plinkoCanvas');
+    if (plinkoCanvas) plinkoCanvas.parentElement?.insertAdjacentElement('beforebegin', plinkoSpeedControl);
+    else plinkoView.appendChild(plinkoSpeedControl);
   }
 
   const tabs = document.querySelector('.nav-tabs');
