@@ -249,6 +249,13 @@ function stopAuto(game) {
 // SLOT ENGINE
 // ==========================================
 const SYMBOLS = ['🍒', '🍋', '🍊', '🍇', '🔔', '💎', '7️⃣'];
+const SLOT_SYMBOL_HTML = {
+  '🔔': '<span class="slot-symbol slot-symbol-bar">BAR</span>',
+  '7️⃣': '<span class="slot-symbol slot-symbol-seven">7</span>',
+};
+function renderSlotSymbol(symbol) {
+  return SLOT_SYMBOL_HTML[symbol] || '<span class="slot-symbol">' + symbol + '</span>';
+}
 const CELL_HEIGHT = 75;
 const GAP = 10;
 const ITEM_STEP = CELL_HEIGHT + GAP;
@@ -267,9 +274,9 @@ function initReelColumns() {
     track.style.transition = 'none';
     track.style.transform = 'translateY(0px)';
     track.innerHTML = `
-      <div class="reel-cell" id="cell-0-${c}">${currentGridState[0][c]}</div>
-      <div class="reel-cell" id="cell-1-${c}">${currentGridState[1][c]}</div>
-      <div class="reel-cell" id="cell-2-${c}">${currentGridState[2][c]}</div>
+      <div class="reel-cell" id="cell-0-${c}">${renderSlotSymbol(currentGridState[0][c])}</div>
+      <div class="reel-cell" id="cell-1-${c}">${renderSlotSymbol(currentGridState[1][c])}</div>
+      <div class="reel-cell" id="cell-2-${c}">${renderSlotSymbol(currentGridState[2][c])}</div>
     `;
   }
 }
@@ -411,39 +418,39 @@ function animateContinuousRollingStripsFast(finalGrid) {
     if (!track) return Promise.resolve();
 
     let stripHTML = `
-      <div class="reel-cell">${currentGridState[0][c]}</div>
-      <div class="reel-cell">${currentGridState[1][c]}</div>
-      <div class="reel-cell">${currentGridState[2][c]}</div>
+      <div class="reel-cell">${renderSlotSymbol(finalGrid[0][c])}</div>
+      <div class="reel-cell">${renderSlotSymbol(finalGrid[1][c])}</div>
+      <div class="reel-cell">${renderSlotSymbol(finalGrid[2][c])}</div>
     `;
     for (let i = 0; i < rollingItemsCount; i++) {
       const randSym = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
-      stripHTML += `<div class="reel-cell spin-blur">${randSym}</div>`;
+      stripHTML += `<div class="reel-cell spin-blur">${renderSlotSymbol(randSym)}</div>`;
     }
     stripHTML += `
-      <div class="reel-cell">${finalGrid[0][c]}</div>
-      <div class="reel-cell">${finalGrid[1][c]}</div>
-      <div class="reel-cell">${finalGrid[2][c]}</div>
+      <div class="reel-cell">${renderSlotSymbol(currentGridState[0][c])}</div>
+      <div class="reel-cell">${renderSlotSymbol(currentGridState[1][c])}</div>
+      <div class="reel-cell">${renderSlotSymbol(currentGridState[2][c])}</div>
     `;
 
+    const distance = (rollingItemsCount + 3) * ITEM_STEP;
     track.style.transition = 'none';
-    track.style.transform = 'translateY(0px)';
+    track.style.transform = `translateY(-${distance}px)`;
     track.innerHTML = stripHTML;
     track.getBoundingClientRect();
 
-    const distance = (rollingItemsCount + 3) * ITEM_STEP;
-    const durationSeconds = 0.7 + (c * 0.14);
+    const durationSeconds = 0.76 + (c * 0.15);
     return new Promise(resolve => {
       requestAnimationFrame(() => requestAnimationFrame(() => {
-        track.style.transition = `transform ${durationSeconds}s cubic-bezier(0.12, 0.72, 0.18, 1)`;
-        track.style.transform = `translateY(-${distance}px)`;
+        track.style.transition = `transform ${durationSeconds}s cubic-bezier(0.16, 0.72, 0.14, 1)`;
+        track.style.transform = 'translateY(0px)';
       }));
       setTimeout(() => {
         track.style.transition = 'none';
         track.style.transform = 'translateY(0px)';
         track.innerHTML = `
-          <div class="reel-cell" id="cell-0-${c}">${finalGrid[0][c]}</div>
-          <div class="reel-cell" id="cell-1-${c}">${finalGrid[1][c]}</div>
-          <div class="reel-cell" id="cell-2-${c}">${finalGrid[2][c]}</div>
+          <div class="reel-cell" id="cell-0-${c}">${renderSlotSymbol(finalGrid[0][c])}</div>
+          <div class="reel-cell" id="cell-1-${c}">${renderSlotSymbol(finalGrid[1][c])}</div>
+          <div class="reel-cell" id="cell-2-${c}">${renderSlotSymbol(finalGrid[2][c])}</div>
         `;
         resolve();
       }, durationSeconds * 1000 + 40);
@@ -520,10 +527,9 @@ function drawPlinkoBoard() {
     const bucketX = getGapX(lastRow, i);
     const mult = MULTIPLIERS[i];
 
-    const isLowestMultiplier = mult === 0.2;
-    const slotColor = isLowestMultiplier ? '#2ed573' : '#64748b';
+    const slotColor = mult < 1 ? '#ef4444' : mult < 2 ? '#f59e0b' : mult < 4 ? '#22c55e' : mult < 10 ? '#22d3ee' : '#d946ef';
     ctx.fillStyle = slotColor;
-    ctx.globalAlpha = isLowestMultiplier ? 0.22 : 0.08;
+    ctx.globalAlpha = 0.28;
     ctx.beginPath();
     ctx.roundRect(bucketX - 13, bucketY - 13, 26, 19, 4);
     ctx.fill();
@@ -723,6 +729,15 @@ function updatePlinkoPhysics() {
   }
 }
 
+window.toggleLivePaylines = function(button) {
+  const overlay = document.querySelector('.payline-overlay-live');
+  if (!overlay) return;
+  const visible = overlay.classList.toggle('visible');
+  button.classList.toggle('active', visible);
+  button.innerHTML = '<i class="payline-dot"></i> ' + (visible ? 'Hide' : 'Show') + ' paylines';
+  button.setAttribute('aria-pressed', String(visible));
+};
+
 function installUpdatedCasinoUI() {
   if (!document.getElementById('casinoUpdateStyles')) {
     const style = document.createElement('style');
@@ -732,8 +747,14 @@ function installUpdatedCasinoUI() {
       .leaderboard-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
       .leaderboard-filter-group { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
       .leaderboard-filter-label { flex-basis: 100%; color: var(--text-muted); font-size: .58rem; letter-spacing: .08em; text-transform: uppercase; }
-      .payline-overlay-live { position: absolute; inset: 8px; z-index: 2; width: calc(100% - 16px); height: calc(100% - 16px); pointer-events: none; }
-      .payline-overlay-live polyline { fill: none; stroke: rgba(251, 191, 36, .14); stroke-width: 1; vector-effect: non-scaling-stroke; }
+      .payline-overlay-live { display: none; position: absolute; inset: 8px; z-index: 2; width: calc(100% - 16px); height: calc(100% - 16px); pointer-events: none; }
+      .payline-overlay-live.visible { display: block; }
+      .payline-overlay-live polyline { fill: none; opacity: .78; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 2px rgba(0,0,0,.9)); }
+      .payline-toggle-live { padding: 3px 5px; border: 1px solid var(--border); border-radius: 4px; background: transparent; color: var(--text-muted); font-size: .56rem; text-transform: uppercase; }
+      .payline-toggle-live.active { border-color: #fbbf24; color: #fbbf24; }
+      .slot-symbol { display: inline-flex; min-width: 1.1em; align-items: center; justify-content: center; }
+      .slot-symbol-bar { min-width: 2.5em; padding: 5px 4px; border: 2px solid #f8fafc; border-radius: 4px; background: linear-gradient(180deg,#f8fafc 0 36%,#111827 36% 64%,#f8fafc 64%); color: #ef4444; font-size: .52em; font-weight: 900; }
+      .slot-symbol-seven { color: #ef233c; font-size: 1.3em; font-style: italic; font-weight: 900; -webkit-text-stroke: 1px #ffccd5; text-shadow: 0 3px 0 #8b0015,0 0 10px rgba(239,35,60,.4); transform: skew(-5deg); }
       .leaderboard-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; }
       .leaderboard-table { width: 100%; border-collapse: collapse; font-size: .72rem; }
       .leaderboard-table th, .leaderboard-table td { padding: 9px 7px; border-bottom: 1px solid var(--border); text-align: right; }
@@ -772,9 +793,10 @@ function installUpdatedCasinoUI() {
   if (slotsWrapper && !slotsWrapper.querySelector('.payline-overlay-live')) {
     slotsWrapper.querySelectorAll('.payline-line').forEach(line => line.remove());
     const paylines = [[0,0,0,0,0],[1,1,1,1,1],[2,2,2,2,2],[0,1,2,1,0],[2,1,0,1,2],[0,0,1,2,2],[2,2,1,0,0],[1,0,0,0,1],[1,2,2,2,1]];
-    slotsWrapper.insertAdjacentHTML('afterbegin', '<svg class="payline-overlay-live" viewBox="0 0 500 300" preserveAspectRatio="none" aria-hidden="true">' + paylines.map(line => '<polyline points="' + line.map((row, column) => (50 + column * 100) + ',' + (50 + row * 100)).join(' ') + '"></polyline>').join('') + '</svg>');
-    const legend = document.querySelector('#slots-view .payline-legend span:first-child');
-    if (legend) legend.innerHTML = '<i class="payline-dot"></i> 9 paylines · 96.24% RTP';
+    const colors = ['#ff4757','#2ed573','#3b82f6','#fbbf24','#a855f7','#22d3ee','#f97316','#ec4899','#84cc16'];
+    slotsWrapper.insertAdjacentHTML('afterbegin', '<svg class="payline-overlay-live" viewBox="0 0 500 300" preserveAspectRatio="none" aria-hidden="true">' + paylines.map((line, index) => '<polyline stroke="' + colors[index] + '" points="' + line.map((row, column) => (50 + column * 100) + ',' + (50 + row * 100)).join(' ') + '"></polyline>').join('') + '</svg>');
+    const legend = document.querySelector('#slots-view .payline-legend');
+    if (legend) legend.innerHTML = '<button class="payline-toggle-live" onclick="toggleLivePaylines(this)"><i class="payline-dot"></i> Show paylines</button><span>9 lines · 96.24% RTP</span><span>🔒 server resolved</span>';
   }
 
   const tabs = document.querySelector('.nav-tabs');
