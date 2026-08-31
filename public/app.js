@@ -260,8 +260,9 @@ const CELL_HEIGHT = 75;
 const GAP = 10;
 const ITEM_STEP = CELL_HEIGHT + GAP;
 const SLOT_SPEEDS = {
-  slow: { duration: 1.15 },
-  fast: { duration: 0.76 },
+  slow: { duration: 1.35 },
+  fast: { duration: 0.44 },
+  instant: { duration: 0 },
 };
 let slotSpinSpeed = 'fast';
 
@@ -379,6 +380,29 @@ window.spinMegaFruits = async function() {
         setInputsLocked('slots', false);
       }
       return false;
+    }
+
+    if (slotSpinSpeed === 'instant') {
+      currentGridState = data.grid;
+      initReelColumns();
+      if (balanceElem) balanceElem.innerText = data.newBalance;
+      if (winBanner) {
+        if (data.winAmount > 0) {
+          winBanner.innerText = `🎉 WIN! Multiplier: ${Number(data.multiplier).toFixed(2)}x — Won ${data.winAmount} Credits!`;
+          data.winningPositions.forEach(pos => {
+            const cell = document.getElementById(`cell-${pos.r}-${pos.c}`);
+            if (cell) cell.classList.add('win-highlight');
+          });
+        } else {
+          winBanner.innerText = 'No payline hits. Better luck next spin!';
+        }
+      }
+      isSlotSpinning = false;
+      if (!autoState.slots.running) {
+        spinBtn.disabled = false;
+        setInputsLocked('slots', false);
+      }
+      return true;
     }
 
     await animateContinuousRollingStripsFast(data.grid);
@@ -739,7 +763,7 @@ window.setSlotSpinSpeed = function(speed, button) {
   if (!SLOT_SPEEDS[speed]) return;
   slotSpinSpeed = speed;
   document.querySelectorAll('[data-spin-speed]').forEach(el => el.classList.toggle('active', el.dataset.spinSpeed === speed));
-  if (button) button.setAttribute('aria-pressed', 'true');
+  document.querySelectorAll('[data-spin-speed]').forEach(el => el.setAttribute('aria-pressed', String(el.dataset.spinSpeed === speed)));
 };
 
 window.toggleLivePaylines = function(button) {
@@ -814,7 +838,7 @@ function installUpdatedCasinoUI() {
     const colors = ['#ff4757','#2ed573','#3b82f6','#fbbf24','#a855f7','#22d3ee','#f97316','#ec4899','#84cc16'];
     slotsWrapper.insertAdjacentHTML('afterbegin', '<svg class="payline-overlay-live" viewBox="0 0 500 300" preserveAspectRatio="none" aria-hidden="true">' + paylines.map((line, index) => '<polyline stroke="' + colors[index] + '" points="' + line.map((row, column) => (50 + column * 100) + ',' + (50 + row * 100)).join(' ') + '"></polyline>').join('') + '</svg>');
     const legend = document.querySelector('#slots-view .payline-legend');
-    if (legend) legend.innerHTML = '<button class="payline-toggle-live" onclick="toggleLivePaylines(this)"><i class="payline-dot"></i> Show paylines</button><div class="spin-speed-control-live" role="group" aria-label="Spinning speed"><span>SPIN SPEED</span><button class="active" data-spin-speed="fast" onclick="setSlotSpinSpeed(\'fast\', this)">Fast</button><button data-spin-speed="slow" onclick="setSlotSpinSpeed(\'slow\', this)">Slow</button></div>';
+    if (legend) legend.innerHTML = '<button class="payline-toggle-live" onclick="toggleLivePaylines(this)"><i class="payline-dot"></i> Show paylines</button><div class="spin-speed-control-live" role="group" aria-label="Spinning speed"><span>SPIN SPEED</span><button class="active" data-spin-speed="fast" aria-pressed="true" onclick="setSlotSpinSpeed(\'fast\', this)">Fast</button><button data-spin-speed="slow" aria-pressed="false" onclick="setSlotSpinSpeed(\'slow\', this)">Slow</button><button data-spin-speed="instant" aria-pressed="false" onclick="setSlotSpinSpeed(\'instant\', this)">Instant</button></div>';
   }
 
   const tabs = document.querySelector('.nav-tabs');
