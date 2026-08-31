@@ -207,7 +207,7 @@ async function handleInteraction(interaction) {
     const selected = target || user;
     const wallet = await getUser(selected.id, { username: selected.globalName || selected.username });
     const embed = new EmbedBuilder().setTitle('💰 Account Balance').setDescription('**' + selected.username + '** has **' + wallet.balance + '** Credits.').setColor('#2ed573');
-    return interaction.reply({ embeds: [embed] });
+    return interaction.reply({ embeds: [embed], ephemeral: true });
   }
 
   if (commandName === 'deposit' || commandName === 'withdraw') {
@@ -227,7 +227,7 @@ async function handleInteraction(interaction) {
         .setDescription((commandName === 'deposit' ? 'Added' : 'Deducted') + ' **' + amount + '** credits for <@' + target.id + '>.')
         .addFields({ name: 'New Balance', value: wallet.balance + ' Credits', inline: true })
         .setColor(commandName === 'deposit' ? '#2ed573' : '#ff4757');
-      return interaction.reply({ embeds: [embed] });
+      return interaction.reply({ embeds: [embed], ephemeral: true });
     } catch (error) { return interaction.reply({ content: '❌ ' + (error.message === 'Insufficient balance' ? error.message : 'Wallet adjustment failed.'), ephemeral: true }); }
   }
 
