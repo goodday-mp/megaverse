@@ -2,6 +2,7 @@ import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 
 let db;
+let balanceAdjustmentQueue = Promise.resolve();
 const STARTING_BALANCE = 1000;
 
 export async function initDB() {
@@ -65,7 +66,7 @@ export async function getUser(discordId, profile = {}) {
   return user;
 }
 
-export async function adjustBalance(discordId, amountChange, options = {}) {
+async function adjustBalanceLocked(discordId, amountChange, options = {}) {
   const database = requireDB();
   if (!Number.isInteger(amountChange) || amountChange === 0) {
     throw new Error('Balance adjustments must be non-zero whole credits');
@@ -112,6 +113,12 @@ export async function adjustBalance(discordId, amountChange, options = {}) {
   }
 }
 
+export function adjustBalance(discordId, amountChange, options = {}) {
+  const operation = balanceAdjustmentQueue.then(() => adjustBalanceLocked(discordId, amountChange, options));
+  balanceAdjustmentQueue = operation.catch(() => {});
+  return operation;
+}
+
 export async function updateBalance(discordId, amountChange, options = {}) {
   return adjustBalance(discordId, amountChange, options);
 }
@@ -121,6 +128,39 @@ export async function getRecentTransactions(discordId, limit = 10) {
     'SELECT id, type, amount, balance_after, reason, created_at FROM transactions WHERE discord_id = ? ORDER BY id DESC LIMIT ?',
     [discordId, limit],
   );
+}
+
+export async function getLeaderboard(period = 'all', sort = 'won', limit = 50) {
+  const database = requireDB();
+  const periodModifiers = { daily: '-1 day', weekly: '-7 days', monthly: '-1 month', all: null };
+  if (!Object.prototype.hasOwnProperty.call(periodModifiers, period)) throw new Error('Invalid leaderboard period');
+  if (!['won', 'wagered'].includes(sort)) throw new Error('Invalid leaderboard sort');
+
+  const modifier = periodModifiers[period];
+  const activityWindow = modifier ? "AND t.created_at >= datetime('now', ?)" : '';
+  const orderColumn = sort === 'wagered' ? 'wagered' : 'won';
+  const secondaryColumn = sort === 'wagered' ? 'won' : 'wagered';
+  const params = modifier ? [modifier, limit] : [limit];
+  const rows = await database.all(
+    `SELECT COALESCE(u.username, 'Discord player') AS display_name,
+            u.avatar AS avatar,
+            COALESCE(SUM(CASE WHEN t.type = 'bet' THEN ABS(t.amount) ELSE 0 END), 0) AS wagered,
+            COALESCE(SUM(CASE WHEN t.type = 'win' THEN t.amount ELSE 0 END), 0) AS won
+       FROM users u
+       LEFT JOIN transactions t ON t.discord_id = u.discord_id ${activityWindow}
+      GROUP BY u.discord_id, u.username, u.avatar
+      ORDER BY ${orderColumn} DESC, ${secondaryColumn} DESC, display_name COLLATE NOCASE ASC
+      LIMIT ?`,
+    params,
+  );
+
+  return rows.map((row, index) => ({
+    rank: index + 1,
+    displayName: row.display_name,
+    avatar: row.avatar || null,
+    wagered: Number(row.wagered) || 0,
+    won: Number(row.won) || 0,
+  }));
 }
 
 export function getDB() { return db; }
