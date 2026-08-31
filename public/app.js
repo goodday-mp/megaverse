@@ -120,7 +120,8 @@ window.setMaxBet = function(inputId) {
   const input = document.getElementById(inputId);
   if (!balanceElem || !input || input.disabled) return;
   const currentBalance = parseInt(balanceElem.innerText || 0, 10);
-  input.value = Math.max(10, Math.min(10000, currentBalance));
+  if (currentBalance < 10) return;
+  input.value = Math.min(10000, currentBalance);
 };
 
 function createRequestKey(prefix) {
@@ -374,7 +375,7 @@ window.spinMegaFruits = async function() {
 
     if (winBanner) {
       if (data.winAmount > 0) {
-        winBanner.innerText = `🎉 WIN! Multiplier: ${data.multiplier}x — Won ${data.winAmount} Credits!`;
+        winBanner.innerText = `🎉 WIN! Multiplier: ${Number(data.multiplier).toFixed(2)}x — Won ${data.winAmount} Credits!`;
         data.winningPositions.forEach(pos => {
           const cell = document.getElementById(`cell-${pos.r}-${pos.c}`);
           if (cell) cell.classList.add('win-highlight');
