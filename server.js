@@ -32,7 +32,13 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json({ limit: '20kb' }));
-app.use(express.static('public', { etag: true, maxAge: '1h' }));
+app.use(express.static('public', {
+  etag: true,
+  maxAge: '1h',
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('/index.html')) res.setHeader('Cache-Control', 'no-store');
+  },
+}));
 
 const SYMBOLS = ['🍒', '🍋', '🍊', '🍇', '🔔', '💎', '7️⃣'];
 const PAYTABLE = {
