@@ -49,15 +49,18 @@ async function initializeDiscordUser() {
 
 // Tab Switching
 window.switchGame = function(game) {
-  if (isSlotSpinning || activePlinkoDrops > 0) return;
+  if (isSlotSpinning) return;
 
   stopAuto('slots');
   stopAuto('plinko');
 
   document.getElementById('slots-view').classList.toggle('active', game === 'slots');
   document.getElementById('plinko-view').classList.toggle('active', game === 'plinko');
+  document.getElementById('leaderboard-view').classList.toggle('active', game === 'leaderboard');
   document.getElementById('tab-slots').classList.toggle('active', game === 'slots');
   document.getElementById('tab-plinko').classList.toggle('active', game === 'plinko');
+  document.getElementById('tab-leaderboard').classList.toggle('active', game === 'leaderboard');
+  if (game === 'leaderboard') fetchLeaderboard();
 };
 
 // Fetch Initial Balance
@@ -91,9 +94,11 @@ function setInputsLocked(game, locked) {
 
   const tabSlots = document.getElementById('tab-slots');
   const tabPlinko = document.getElementById('tab-plinko');
-  const isAnyActive = isSlotSpinning || activePlinkoDrops > 0;
+  const tabLeaderboard = document.getElementById('tab-leaderboard');
+  const isAnyActive = isSlotSpinning;
   if (tabSlots) tabSlots.disabled = isAnyActive;
   if (tabPlinko) tabPlinko.disabled = isAnyActive;
+  if (tabLeaderboard) tabLeaderboard.disabled = isAnyActive;
 }
 
 // Bet Modifiers
@@ -117,6 +122,61 @@ window.setMaxBet = function(inputId) {
   const currentBalance = parseInt(balanceElem.innerText || 0, 10);
   input.value = Math.max(10, currentBalance);
 };
+
+function createRequestKey(prefix) {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return prefix + '-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+}
+
+let leaderboardPeriod = 'daily';
+let leaderboardSort = 'won';
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+window.setLeaderboardPeriod = function(period, button) {
+  leaderboardPeriod = period;
+  document.querySelectorAll('[data-leaderboard-period]').forEach(item => item.classList.remove('selected'));
+  button?.classList.add('selected');
+  fetchLeaderboard();
+};
+
+window.setLeaderboardSort = function(sort, button) {
+  leaderboardSort = sort;
+  document.querySelectorAll('[data-leaderboard-sort]').forEach(item => item.classList.remove('selected'));
+  button?.classList.add('selected');
+  fetchLeaderboard();
+};
+
+async function fetchLeaderboard() {
+  const body = document.getElementById('leaderboardBody');
+  const status = document.getElementById('leaderboardStatus');
+  if (!body || !status) return;
+  status.innerText = 'Loading rankings...';
+  try {
+    const response = await fetch(API_BASE + '/api/leaderboard?period=' + encodeURIComponent(leaderboardPeriod) + '&sort=' + encodeURIComponent(leaderboardSort));
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Leaderboard unavailable');
+    body.innerHTML = data.entries.map(entry => `
+      <tr>
+        <td class="leaderboard-rank">#${entry.rank}</td>
+        <td><div class="leaderboard-player">${entry.avatar ? `<img src="${escapeHtml(entry.avatar)}" alt="">` : '<span class="leaderboard-avatar-fallback">?</span>'}<span>${escapeHtml(entry.displayName)}</span></div></td>
+        <td>${Number(entry.wagered).toLocaleString()}</td>
+        <td>${Number(entry.won).toLocaleString()}</td>
+      </tr>`).join('');
+    status.innerText = data.entries.length ? '' : 'No wagers in this period yet.';
+  } catch (error) {
+    console.error('Leaderboard error:', error);
+    body.innerHTML = '';
+    status.innerText = 'Rankings are temporarily unavailable.';
+  }
+}
 
 // Auto-Bet State
 const autoState = {
@@ -289,7 +349,7 @@ window.spinMegaFruits = async function() {
       method: "POST",
       headers: {
               'Content-Type': 'application/json',
-              'X-Idempotency-Key': crypto.randomUUID ? crypto.randomUUID() : 'spin-' + Date.now(),
+              'X-Idempotency-Key': createRequestKey('spin'),
             },
             credentials: 'include',
             body: JSON.stringify({ bet }),
@@ -344,51 +404,51 @@ window.spinMegaFruits = async function() {
 };
 
 function animateContinuousRollingStripsFast(finalGrid) {
-  return new Promise(resolve => {
-    const totalColumns = 5;
-    const rollingItemsCount = 12;
+  const rollingItemsCount = 12;
+  const columns = Array.from({ length: 5 }, (_, c) => {
+    const track = document.getElementById(`col-track-${c}`);
+    if (!track) return Promise.resolve();
 
-    for (let c = 0; c < totalColumns; c++) {
-      const track = document.getElementById(`col-track-${c}`);
-      if (!track) continue;
-
-      let stripHTML = `
-        <div class="reel-cell" id="cell-0-${c}">${finalGrid[0][c]}</div>
-        <div class="reel-cell" id="cell-1-${c}">${finalGrid[1][c]}</div>
-        <div class="reel-cell" id="cell-2-${c}">${finalGrid[2][c]}</div>
-      `;
-
-      for (let i = 0; i < rollingItemsCount; i++) {
-        const randSym = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
-        stripHTML += `<div class="reel-cell spin-blur">${randSym}</div>`;
-      }
-
-      stripHTML += `
-        <div class="reel-cell">${currentGridState[0][c]}</div>
-        <div class="reel-cell">${currentGridState[1][c]}</div>
-        <div class="reel-cell">${currentGridState[2][c]}</div>
-      `;
-
-      track.innerHTML = stripHTML;
-
-      const startOffsetY = -(rollingItemsCount + 3) * ITEM_STEP;
-      track.style.transition = 'none';
-      track.style.transform = `translateY(${startOffsetY}px)`;
-
-      track.getBoundingClientRect();
-
-      const durationSeconds = 0.6 + (c * 0.15);
-      track.style.transition = `transform ${durationSeconds}s cubic-bezier(0.1, 0.9, 0.2, 1.0)`;
-      track.style.transform = 'translateY(0px)';
-
-      if (c === totalColumns - 1) {
-        setTimeout(() => {
-          document.querySelectorAll('.spin-blur').forEach(el => el.classList.remove('spin-blur'));
-          resolve();
-        }, durationSeconds * 1000);
-      }
+    let stripHTML = `
+      <div class="reel-cell">${currentGridState[0][c]}</div>
+      <div class="reel-cell">${currentGridState[1][c]}</div>
+      <div class="reel-cell">${currentGridState[2][c]}</div>
+    `;
+    for (let i = 0; i < rollingItemsCount; i++) {
+      const randSym = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+      stripHTML += `<div class="reel-cell spin-blur">${randSym}</div>`;
     }
+    stripHTML += `
+      <div class="reel-cell">${finalGrid[0][c]}</div>
+      <div class="reel-cell">${finalGrid[1][c]}</div>
+      <div class="reel-cell">${finalGrid[2][c]}</div>
+    `;
+
+    track.style.transition = 'none';
+    track.style.transform = 'translateY(0px)';
+    track.innerHTML = stripHTML;
+    track.getBoundingClientRect();
+
+    const distance = (rollingItemsCount + 3) * ITEM_STEP;
+    const durationSeconds = 0.7 + (c * 0.14);
+    return new Promise(resolve => {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        track.style.transition = `transform ${durationSeconds}s cubic-bezier(0.12, 0.72, 0.18, 1)`;
+        track.style.transform = `translateY(-${distance}px)`;
+      }));
+      setTimeout(() => {
+        track.style.transition = 'none';
+        track.style.transform = 'translateY(0px)';
+        track.innerHTML = `
+          <div class="reel-cell" id="cell-0-${c}">${finalGrid[0][c]}</div>
+          <div class="reel-cell" id="cell-1-${c}">${finalGrid[1][c]}</div>
+          <div class="reel-cell" id="cell-2-${c}">${finalGrid[2][c]}</div>
+        `;
+        resolve();
+      }, durationSeconds * 1000 + 40);
+    });
   });
+  return Promise.all(columns);
 }
 
 // ==========================================
@@ -408,10 +468,10 @@ const PEG_SPACING = 28;
 const activeBalls = [];
 let plinkoLoopStarted = false;
 let activePlinkoDrops = 0;
+let pendingPlinkoWagers = 0;
 
 function updatePlinkoInputState() {
-  const isLocked = activePlinkoDrops > 0 || autoState.plinko.running;
-  setInputsLocked('plinko', isLocked);
+  setInputsLocked('plinko', autoState.plinko.running);
   
   const dropBtn = document.getElementById('dropBtn');
   if (dropBtn && !autoState.plinko.running) {
@@ -459,9 +519,10 @@ function drawPlinkoBoard() {
     const bucketX = getGapX(lastRow, i);
     const mult = MULTIPLIERS[i];
 
-    const slotColor = mult >= 2 ? '#ff4757' : (mult >= 1 ? '#ffa502' : '#2ed573');
+    const isLowestMultiplier = mult === 0.2;
+    const slotColor = isLowestMultiplier ? '#2ed573' : '#64748b';
     ctx.fillStyle = slotColor;
-    ctx.globalAlpha = 0.22;
+    ctx.globalAlpha = isLowestMultiplier ? 0.22 : 0.08;
     ctx.beginPath();
     ctx.roundRect(bucketX - 13, bucketY - 13, 26, 19, 4);
     ctx.fill();
@@ -531,12 +592,13 @@ window.dropPlinkoBall = async function() {
   const balanceElem = document.getElementById("balance");
   const currentBal = parseInt(balanceElem ? balanceElem.innerText : 0, 10);
 
-  if (!bet || bet <= 0 || currentBal < bet) {
+  if (!bet || bet <= 0 || currentBal - pendingPlinkoWagers < bet) {
     alert("Insufficient balance or invalid bet.");
     return false;
   }
 
   activePlinkoDrops++;
+  pendingPlinkoWagers += bet;
   updatePlinkoInputState();
 
   try {
@@ -544,7 +606,7 @@ window.dropPlinkoBall = async function() {
       method: "POST",
       headers: {
               'Content-Type': 'application/json',
-              'X-Idempotency-Key': crypto.randomUUID ? crypto.randomUUID() : 'drop-' + Date.now(),
+              'X-Idempotency-Key': createRequestKey('drop'),
             },
             credentials: 'include',
             body: JSON.stringify({ bet }),
@@ -555,6 +617,7 @@ window.dropPlinkoBall = async function() {
     if (!res.ok) {
       alert(data.error || "Plinko error occurred.");
       activePlinkoDrops--;
+      pendingPlinkoWagers = Math.max(0, pendingPlinkoWagers - bet);
       updatePlinkoInputState();
       return false;
     }
@@ -583,8 +646,8 @@ window.dropPlinkoBall = async function() {
       progress: 0,
       speed: 0.08,
       multiplier: data.multiplier,
-      winAmount: data.winAmount,
-      newBalance: data.newBalance
+      bet,
+      winAmount: data.winAmount
     });
 
     if (!plinkoLoopStarted) {
@@ -598,6 +661,7 @@ window.dropPlinkoBall = async function() {
     console.error("Plinko Connection Error:", err);
     alert(`Server error connecting to Plinko endpoint!`);
     activePlinkoDrops--;
+    pendingPlinkoWagers = Math.max(0, pendingPlinkoWagers - bet);
     updatePlinkoInputState();
     return false;
   }
@@ -613,10 +677,14 @@ function updatePlinkoPhysics() {
     if (!targetWp) {
       activeBalls.splice(i, 1);
       activePlinkoDrops = Math.max(0, activePlinkoDrops - 1);
+      pendingPlinkoWagers = Math.max(0, pendingPlinkoWagers - ball.bet);
       updatePlinkoInputState();
 
       const balanceElem = document.getElementById("balance");
-      if (balanceElem) balanceElem.innerText = ball.newBalance;
+      if (balanceElem) {
+        const visibleBalance = parseInt(balanceElem.innerText || 0, 10);
+        balanceElem.innerText = visibleBalance - ball.bet + ball.winAmount;
+      }
 
       const winBanner = document.getElementById("plinkoWinBanner");
       if (winBanner) {
@@ -638,7 +706,7 @@ function updatePlinkoPhysics() {
       ball.y = startWp.y + (targetWp.y - startWp.y) * ball.progress + Math.sin(ball.progress * Math.PI) * -15;
     }
 
-    ctx.fillStyle = ball.multiplier >= 2 ? "#ff4757" : (ball.multiplier >= 1 ? "#ffa502" : "#2ed573");
+    ctx.fillStyle = "#f8fafc";
     ctx.beginPath();
     ctx.arc(ball.x, ball.y, BALL_RADIUS, 0, Math.PI * 2);
     ctx.fill();
